@@ -1,0 +1,124 @@
+#西瓜视频
+import requests
+import os
+import pickle
+from lxml import etree
+import time
+from selenium.webdriver.support.ui import Select
+from selenium import webdriver
+from selenium.webdriver.support.wait import WebDriverWait
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.common.action_chains import ActionChains
+
+
+url_login="https://mp.toutiao.com/auth/page/login/"
+url_list2="https://mp.toutiao.com/profile_v3/index"
+
+browser=webdriver.Chrome()
+browser.implicitly_wait(3)
+
+def gettoutiaoCookies():
+    # get login toutiao cookies
+    url = "https://mp.toutiao.com/auth/page/login/"
+    browser.get(url_login)
+    while True:
+        print("Please login in toutiao.com!")
+        time.sleep(10)
+        # if login in successfully, url  jump to toutiao.com
+        while browser.current_url == url_list2:
+            ttCookies = browser.get_cookies()
+            browser.quit()
+            cookies = {}
+            for item in ttCookies:
+                cookies[item['name']] = item['value']
+            outputPath = open('toutiaoCookies.pickle','wb')
+            pickle.dump(cookies,outputPath)
+            outputPath.close()
+            return cookies
+
+def readtoutiaoCookies():
+    # if hava cookies file ,use it 
+    # if not , gettoutiaoCookies()
+    if os.path.exists('toutiaoCookies.pickle'):
+        readPath = open('toutiaoCookies.pickle','rb')
+        ttCookies = pickle.load(readPath)
+    else:
+        ttCookies = gettoutiaoCookies()
+    return ttCookies
+
+ttCookies = readtoutiaoCookies()
+
+browser.get("https://mp.toutiao.com/profile_v3/xigua/upload-video")
+for cookie in ttCookies:
+    browser.add_cookie({
+        "domain":".toutiao.com",
+        "name":cookie,
+        "value":ttCookies[cookie],
+        "path":'/',
+        "expires":None
+    })
+browser.get("https://mp.toutiao.com/profile_v3/xigua/upload-video")
+time.sleep(3)
+
+#规范文件名
+def setname():
+	path="K:\\短片\\实验"
+	file_list=os.listdir(path)
+	print(file_list)
+	for file in file_list:
+		os.chdir(path)
+		os.rename(file,file.replace(" - 新片场",""))
+		os.rename(file,file.replace(" ",""))
+	return
+setname()
+
+
+path="K:\\短片\\实验"  #待读取的文件夹
+path_list=os.listdir(path)
+path_list.sort()
+
+def uploadvdieoclick():
+	uploadvdieo=browser.find_element_by_xpath('//*[@id="xigua"]/div/div[1]/div[1]/div[1]/div[1]/div')
+	ActionChains(browser).move_to_element(uploadvdieo).click().perform()
+	time.sleep(2)
+	return
+
+for i in path_list:
+	uploadvdieoclick()
+	print(i)
+	path_up='K:\\短片\\实验\\'+str(i)
+	print(path_up)
+	os.system("C:\\Users\\leily\\Desktop\\python练习\\updown\\updown.exe %s" % path_up)
+	time.sleep(5)
+	
+	while True:
+		source=browser.page_source
+		html=etree.HTML(source)
+		uploadtime=html.xpath('//*[@id="xigua"]/div/div[1]/div/div[2]/div/div[1]/div[1]/div[1]/div[1]/span[1]/text()')
+		print(uploadtime)
+		time.sleep(5)
+		if "".join(uploadtime)=="视频重复 ":#判断如果视频重复则点击删除后返回
+			delete=browser.find_element_by_xpath('//*[@id="xigua"]/div/div/div[1]/div/div[2]/div/div/div[1]/div[1]/div[2]/span[2]').click()
+			time.sleep(1)
+			source1=browser.page_source
+			html1=etree.HTML(source1)
+			ensuredelete=browser.find_element_by_xpath('//*[@id="__SYSTEM_COMPONENT"]/div/div/div[2]/div[3]/div[1]')
+			ActionChains(browser).move_to_element(ensuredelete).click().perform()
+		else:
+			pass
+		if "".join(uploadtime)=="视频重复 ":#判断如果上传失败就点击继续上传
+			browser.find_element_by_xpath('//*[@id="xigua"]/div/div[1]/div/div[2]/div/div[1]/div[1]/div[1]/div[2]/span[1]').click()
+			pass
+		while "".join(uploadtime) == '上传成功 ':
+			publish=browser.find_element_by_xpath('//*[@id="js-batch-footer-0"]/div[1]').click()
+			time.sleep(5)
+			returnupvideo=browser.find_element_by_xpath('//*[@id="root"]/div[2]/div[2]/ul/li[2]/ul/li[2]/a').click()
+			break
+		publishbutton=html.xpath('//*[@id="js-batch-footer-0"]/div[1]/text()')
+		print(publishbutton)
+		if "".join(publishbutton) =='发表':
+			continue
+		else:
+			break
+
+	
