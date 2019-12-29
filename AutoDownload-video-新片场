@@ -1,0 +1,81 @@
+#mvspider
+import requests
+import re
+from lxml import etree
+import os
+import time
+from selenium import webdriver
+from selenium.webdriver.support.wait import WebDriverWait
+from selenium.webdriver.common.action_chains import ActionChains
+
+listid=[]
+listname=[]
+#构造基础URL
+#https://www.xinpianchang.com/channel/index/id-69/sort-like/duration_type-0/resolution_type-/type-/page-
+for i in range(1,20):
+	url='https://www.xinpianchang.com/channel/index/id-18/page-'+str(i)
+	response=requests.get(url)
+	strr=response.text
+
+	html=etree.HTML(strr)
+	result_id=html.xpath('//*[@class="video-list"]/li/@data-articleid')
+	result_name=html.xpath('//*[@class="enter-filmplay"]/div/div/a/p/text()')
+	listid.extend(result_id)
+	listname.extend(result_name)
+	print(listid,listname)
+#构造视频详情页URL
+for i in range(0,len(listid)):
+	try:
+		playurl="https://www.xinpianchang.com/a"+str(listid[i])+"?"
+		playname=listname[i]
+#请求详情页视频
+		browser=webdriver.Chrome()
+		browser.get(playurl)
+		browser.implicitly_wait(5)
+#选择清晰度
+	
+		element=browser.find_element_by_xpath('//*[@class="vjs-origin-control"]')
+		ActionChains(browser).move_to_element(element).perform()
+		time.sleep(2)
+		Select=browser.find_element_by_xpath('//*[@class="oc oc-action"]/span[@index="0"]').click()
+		time.sleep(5)
+	except:
+		continue
+		#break
+		print(i)
+
+#button_play=browser.find_element_by_xpath('//*[@class="vjs-play-control"]').click()
+#time.sleep(5)
+
+#查找视频原地址
+	source=browser.page_source
+	html=etree.HTML(source)
+	html_down=html.xpath('//video/@src')
+	videonamelist=html.xpath('//h3[@class="title fs_26 fw_600 c_b_3 short"]/text()')
+	videonamesrt=''.join(videonamelist)
+	print(html_down)
+	
+	for i in range(0,len(html_down)):
+		url=str(html_down[i])
+		print(url)
+
+	data=requests.get(url).content
+
+	s = '*\/:?"<>|'     #这9个字符在Windows系统下是不可以出现在文件名中的
+	videoname = re.findall('[\u4e00-\u9fa5a-zA-Z0-9]+',videonamesrt,re.S)
+	videoname = "".join(videoname)
+
+	try:
+		with open("K:\\短片\\实验\\{}.mp4".format(videoname),"wb") as f:
+			f.write(data)
+		print('下载'+videoname+'成功')
+	except:
+		with open("K:\\短片\\实验\\mistake.txt","a") as f:
+			f.write(videoname+str(playurl))
+		print('下载'+videoname+'失败')
+
+	time.sleep(2)
+	browser.close()
+	
+
+
